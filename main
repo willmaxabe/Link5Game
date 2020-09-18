@@ -1,0 +1,1040 @@
+import pygame
+import random
+import math
+import operator
+
+pygame.init()
+
+windwidth = 800
+windheight = 600
+wind = pygame.display.set_mode((windwidth, windheight))
+pygame.display.set_caption("Link5")
+font = pygame.font.SysFont('consolas', 18)
+fontsmall = pygame.font.SysFont('consolas', 12)
+
+GameState = True
+GameMode = 2
+
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+GREY = (200, 200, 200)
+RED = (255, 0, 0)
+
+TITLE = pygame.image.load('Link5Game_assets\_title.png')
+XPIECE = pygame.image.load('Link5Game_assets\X.png')
+OPIECE = pygame.image.load('Link5Game_assets\O.png')
+XPIECELM = pygame.image.load('Link5Game_assets\Xlm.png')
+OPIECELM = pygame.image.load('Link5Game_assets\Olm.png')
+XPIECEW = pygame.image.load('Link5Game_assets\_Xwin.png')
+OPIECEW = pygame.image.load('Link5Game_assets\_Owin.png')
+YAXIS = pygame.image.load('Link5Game_assets\yaxisrev.png')
+XAXIS = pygame.image.load('Link5Game_assets\_xaxisrev.png')
+TURN = pygame.image.load('Link5Game_assets\_turn.png')
+RESET = pygame.image.load('Link5Game_assets\_reset.png')
+UNDO = pygame.image.load('Link5Game_assets\_undo.png')
+CHANGE = pygame.image.load('Link5Game_assets\_change.png')
+QUIT = pygame.image.load('Link5Game_assets\_quit.png')
+YES = pygame.image.load('Link5Game_assets\_yes.png')
+NO = pygame.image.load('Link5Game_assets\_no.png')
+HELP = pygame.image.load('Link5Game_assets\_help.png')
+OK = pygame.image.load('Link5Game_assets\_ok.png')
+
+width = 25
+height = 25
+outline = 1
+TopLeft = (75, 175)
+BottomRight = (TopLeft[0] + (width * 15), TopLeft[1] + (height * 15))
+
+TopLeftTitle = (TopLeft[0] + 59, 5)
+
+TopLeftRound = (TopLeft[0] + 400, 20)
+
+TopLeftConsole = (TopLeft[0] + 400, TopLeft[1])
+
+TopLeftPrompt = (TopLeftConsole[0] + 4, TopLeftConsole[1] + 125)
+TopLeftYes = (TopLeftPrompt[0], TopLeftPrompt[1] + 20)
+TopLeftNo = (TopLeftPrompt[0] + 60, TopLeftPrompt[1] + 20)
+
+TopLeftButtonGroup = (TopLeftConsole[0], TopLeftConsole[1] + 280)
+ButtonGroupVerSpace = 35
+TopLeftChange = (TopLeftButtonGroup[0], TopLeftButtonGroup[1])
+TopLeftReset = (TopLeftButtonGroup[0], TopLeftButtonGroup[1] + (ButtonGroupVerSpace * 1))
+TopLeftUndo = (TopLeftButtonGroup[0], TopLeftButtonGroup[1] + (ButtonGroupVerSpace * 2))
+TopLeftQuit = (TopLeftButtonGroup[0] + 220, TopLeftButtonGroup[1] + (ButtonGroupVerSpace * 3))
+TopLeftHelp = (TopLeftButtonGroup[0] + 220, TopLeftButtonGroup[1])
+TopLeftOk = (TopLeftButtonGroup[0] + 220, TopLeftButtonGroup[1] - 37)
+
+mainboard = ['.' for i in range(225)]
+valueboard = [0 for i in range(225)]
+winlist = []
+lastmove = ['','','','']
+undolist = ['','']    
+xplots = []
+xpos = []
+oplots = []
+opos = []
+ridxret = []
+
+friendly = 'X'
+hostile = 'O'
+WinState = 0
+RoundCount = 1
+TurnCount = 0
+xscore = 0
+oscore = 0
+ButtonPressed = 'None'
+
+def valueboardori():
+    global valueboard
+    valueboard = []
+    valueboard = [0 for i in range(225)]
+
+def plotcoord(x, y):
+    px = ((x * width) + 2) + TopLeft[0]
+    py = ((y * height) + 2) + TopLeft[1]
+    return px, py
+
+def posdecoord(x, y):
+    pos = (y * 15) + x
+    return pos
+
+def postoplot(pos):
+    psx = (pos % 15)
+    psy = (math.floor(pos / 15))
+    px = plotcoord(psx, psy)[0]
+    py = plotcoord(psx, psy)[1]
+    return px, py
+
+def turnmark(f):
+    global friendly
+    global hostile
+    if f == 'X':
+        friendly = 'O'
+        hostile = 'X'
+    else:
+        friendly = 'X'
+        hostile = 'O'
+
+def mainloop():
+    global GameState
+    global GameMode
+    global WinState
+    global TurnCount
+    global ButtonPressed
+    global mainboard
+    global valueboard
+    global lastmove
+    global undolist
+    global xplots
+    global xpos
+    global oplots
+    global opos
+    
+    while GameState:
+            
+        wind.fill(BLACK)
+
+        # Draw the title card
+        wind.blit(TITLE, (TopLeftTitle[0], TopLeftTitle[1]))
+
+        # Draw the white base of the board
+        pygame.draw.rect(wind, WHITE, (TopLeft[0], TopLeft[1], width * 15, height * 15))
+        
+        # Draw the black inner border of the board
+        for i in range(1, 16):
+            for j in range(1, 16):
+                pygame.draw.rect(wind, BLACK, (TopLeft[0] + (width * (j - 1)), (TopLeft[1] + (height * (i - 1))), width, height), outline)
+
+        # Declaring the labels, mostly to be displayed in the console box
+        if GameMode == 1:
+            gamemode = 'Player vs Player'
+            px = 'Player X'
+            po = 'Player O'
+        elif GameMode == 2:
+            gamemode = 'Player vs COM'
+            px = 'Player'
+            po = 'COM'
+        elif GameMode == 3:
+            gamemode = 'Test Mode COM vs COM'
+            px = 'hooyaa'
+            po = 'yaahoo'
+        label_by_willmax = fontsmall.render('by priandi_r', 1, WHITE)
+        label_round = font.render('Round : '+str(RoundCount), 1, WHITE)
+        label_score_title = font.render('Score', 1, WHITE)
+        label_score = font.render(str(px)+' : '+str(xscore)+'    '+str(po)+' : '+str(oscore), 1, WHITE)
+        label_gamemode = font.render('Game Mode : '+str(gamemode), 1, WHITE)
+        label_turn_x = font.render('Player X\'s move', 1, WHITE)
+        label_turn_o = font.render('Player O\'s move', 1, WHITE)
+        label_turn_player = font.render('Player\'s move', 1, WHITE)
+        label_turn_computer = font.render('Computer\'s move', 1, WHITE)
+        label_win_enabled = font.render(str(friendly)+' wins!', 1, WHITE)
+        label_win_player = font.render('Player wins!', 1, WHITE)
+        label_win_com = font.render('Computer wins!', 1, WHITE)
+        label_draw = font.render('It is a draw!', 1, WHITE)
+        label_playagain = font.render('Play the next Round?', 1, WHITE)
+        label_change_warning = font.render('This will reset the game.', 1, WHITE)
+        label_change_to1 = font.render('Change to P vs P?', 1, WHITE)
+        label_change_to2 = font.render('Change to P vs COM?', 1, WHITE)
+        label_reset = font.render('Reset the game?', 1, WHITE)
+        label_quit = font.render('Quit the game?', 1, WHITE)
+
+        label_help1 = fontsmall.render('- Click on any blank board to move.', 1, WHITE)
+        label_help2 = fontsmall.render('- Connect 5 pattern of O\'s and X\'s to win.', 1, WHITE)
+        label_help3 = fontsmall.render('- The pattern could be in any direction.', 1, WHITE)
+        label_help4 = fontsmall.render('- The default game mode is vs COM.', 1, WHITE)
+        label_help5 = fontsmall.render('- Click \'mode\' to change to P vs P.', 1, WHITE)
+        label_help6 = fontsmall.render('- Enjoy.', 1, WHITE)
+
+        wind.blit(label_by_willmax, (TopLeftTitle[0], TopLeftTitle[1] + 105))
+        
+        # Blit the 1 2 3 ... mark at the left and top of the board
+        wind.blit(XAXIS, (TopLeft[0], TopLeft[1] - 30))
+        wind.blit(YAXIS, (TopLeft[0] - 30, TopLeft[1]))
+
+        # Draws the Round and score information
+        wind.blit(label_round, (TopLeftRound[0], TopLeftRound[1]))
+        wind.blit(label_score_title, (TopLeftRound[0], TopLeftRound[1] + 30))
+        wind.blit(label_score, (TopLeftRound[0], TopLeftRound[1] + 50))
+
+        # Draw the console box border
+        pygame.draw.rect(wind, WHITE, (TopLeftConsole[0], TopLeftConsole[1], width * 12, height * 11), outline)
+
+        # Draws game rules if Help button is pressed
+        if ButtonPressed == 'Help':
+            help_ver_space = 12
+            wind.blit(label_help1, (TopLeftConsole[0] + 4, TopLeftConsole[1] + (help_ver_space * 1)))
+            wind.blit(label_help2, (TopLeftConsole[0] + 4, TopLeftConsole[1] + (help_ver_space * 2)))
+            wind.blit(label_help3, (TopLeftConsole[0] + 4, TopLeftConsole[1] + (help_ver_space * 3)))
+            wind.blit(label_help4, (TopLeftConsole[0] + 4, TopLeftConsole[1] + (help_ver_space * 4)))
+            wind.blit(label_help5, (TopLeftConsole[0] + 4, TopLeftConsole[1] + (help_ver_space * 5)))
+            wind.blit(label_help6, (TopLeftConsole[0] + 4, TopLeftConsole[1] + (help_ver_space * 6)))
+        
+        # Draws the current Game Mode
+        if ButtonPressed != 'Help':
+            wind.blit(label_gamemode, (TopLeftConsole[0] + 4, TopLeftConsole[1] + 2))
+       
+        # Draws the 'turn' to indicates wich turn is it currently
+        if friendly == 'X' and WinState != 1 and GameMode == 1 and ButtonPressed != 'Help':
+            wind.blit(label_turn_x, (TopLeftConsole[0] + 4, TopLeftConsole[1] + 20))
+        elif friendly == 'X' and WinState != 1 and GameMode == 2 and ButtonPressed != 'Help':
+            wind.blit(label_turn_player, (TopLeftConsole[0] + 4, TopLeftConsole[1] + 20))
+        elif friendly == 'O' and WinState != 1 and GameMode == 1 and ButtonPressed != 'Help':
+            wind.blit(label_turn_o, (TopLeftConsole[0] + 4, TopLeftConsole[1] + 20))
+        elif friendly == 'O' and WinState != 1 and GameMode == 2 and ButtonPressed != 'Help':
+            wind.blit(label_turn_computer, (TopLeftConsole[0] + 4, TopLeftConsole[1] + 20))
+        else:
+            pass
+
+        # Draws the 'win' label to notified whose player is win
+        # Also highlighting the pieces that has linked 5 with yellow color
+        if WinState == 1:
+            if GameMode == 1 or GameMode == 3:
+                wind.blit(label_win_enabled, (TopLeftConsole[0] + 4, TopLeftConsole[1] + 20))
+            elif GameMode == 2:
+                if friendly == 'X':
+                    wind.blit(label_win_player, (TopLeftConsole[0] + 4, TopLeftConsole[1] + 20))
+                elif friendly == 'O':
+                    wind.blit(label_win_com, (TopLeftConsole[0] + 4, TopLeftConsole[1] + 20))
+            lastmove = ['','','','']
+            for i in winlist:
+                p = postoplot(i)
+                if friendly == 'X':
+                    if p in xplots:
+                        xplots.remove(p)
+                    else:
+                        pass
+                    wind.blit(XPIECEW, p)
+                else:
+                    if p in oplots:
+                        oplots.remove(p)
+                    else:
+                        pass
+                    wind.blit(OPIECEW, p)
+        elif WinState == 3:
+            wind.blit(label_draw, (TopLeftConsole[0] + 4, TopLeftConsole[1] + 20))
+
+        # Draws Prompt Question to make sure if the player want to play the next round or not
+        if ButtonPressed == 'Playagain':
+            wind.blit(label_playagain, (TopLeftPrompt[0], TopLeftPrompt[1]))
+            wind.blit(YES, (TopLeftYes[0], TopLeftYes[1]))
+            wind.blit(NO, (TopLeftNo[0], TopLeftNo[1]))
+        else:
+            pass
+                    
+        # Draws Prompt Question to make sure if the player want to change game mode or not
+        if ButtonPressed == 'Change':
+            if mainboard.count('X') != 0 or mainboard.count('O') != 0:
+                wind.blit(label_change_warning, (TopLeftPrompt[0], TopLeftPrompt[1] - 20))
+                if GameMode == 1:
+                    wind.blit(label_change_to2, (TopLeftPrompt[0], TopLeftPrompt[1]))
+                elif GameMode == 2:
+                    wind.blit(label_change_to1, (TopLeftPrompt[0], TopLeftPrompt[1]))
+                elif GameMode == 3:
+                    pass
+                wind.blit(YES, (TopLeftYes[0], TopLeftYes[1]))
+                wind.blit(NO, (TopLeftNo[0], TopLeftNo[1]))
+            else:
+                if GameMode == 1:
+                    wind.blit(label_change_to2, (TopLeftPrompt[0], TopLeftPrompt[1]))
+                elif GameMode == 2:
+                    wind.blit(label_change_to1, (TopLeftPrompt[0], TopLeftPrompt[1]))
+                elif GameMode == 3:
+                    pass
+                wind.blit(YES, (TopLeftYes[0], TopLeftYes[1]))
+                wind.blit(NO, (TopLeftNo[0], TopLeftNo[1]))
+
+
+        # Draws Prompt Question to make sure if the player want to reset the game or not
+        if ButtonPressed == 'Reset':
+            wind.blit(label_reset, (TopLeftPrompt[0], TopLeftPrompt[1]))
+            wind.blit(YES, (TopLeftYes[0], TopLeftYes[1]))
+            wind.blit(NO, (TopLeftNo[0], TopLeftNo[1]))
+        else:
+            pass
+
+        # Draws Prompt Question to make sure if the player want to quit the game or not
+        if ButtonPressed == 'Quit':
+            wind.blit(label_quit, (TopLeftPrompt[0], TopLeftPrompt[1]))
+            wind.blit(YES, (TopLeftYes[0], TopLeftYes[1]))
+            wind.blit(NO, (TopLeftNo[0], TopLeftNo[1]))
+        else:
+            pass            
+
+        # Drawing the utility buttons at the bottom after the console box
+        wind.blit(CHANGE, TopLeftChange)
+        wind.blit(RESET, TopLeftReset)
+        wind.blit(UNDO, TopLeftUndo)
+        wind.blit(QUIT, TopLeftQuit)
+        wind.blit(HELP, TopLeftHelp)
+        if ButtonPressed == 'Help':
+            wind.blit(OK, TopLeftOk)
+
+        # Drawing all the active pieces on the board
+        for img in xplots:
+            wind.blit(XPIECE, img)
+        for img in oplots:
+            wind.blit(OPIECE, img)
+
+        # highlighting the last 2 most current move with purple color
+        if lastmove[0] == '':
+            pass
+        else:
+            wind.blit(XPIECELM, lastmove[0])
+        if lastmove[1] =='':
+            pass
+        else:
+            wind.blit(OPIECELM, lastmove[1])
+
+        # ---------------------------------- The game main event ---------------------------------- #
+        if GameMode == 3:
+            gamemode3()
+        else:
+            pass
+        
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                GameState = False
+
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+
+                mPos = mx, my = pygame.mouse.get_pos()
+
+                if TopLeft[0] <= mx <= BottomRight[0]\
+                   and TopLeft[1] <= my <= BottomRight[1]\
+                   and WinState == 0\
+                   and ButtonPressed == 'None':
+                    tx = mx - TopLeft[0]
+                    ty = my - TopLeft[1]
+
+                    xcoor = (tx - (tx % width)) // width
+                    ycoor = (ty - (ty % height)) // height
+
+                    plot = plotcoord(xcoor, ycoor)
+                    pos = posdecoord(xcoor, ycoor)
+
+                    if plot in oplots or plot in xplots:
+                        pass
+                    else:
+                        if GameMode == 1: 
+                            if friendly == 'X':
+                                xplots.append(plot)
+                                mainboard[pos] = 'X'
+
+                                listoffset('X', plot, pos)
+
+                                wincheck(friendly)
+                                drawcheck()
+                                if WinState == 0:
+                                    turnmark(friendly)
+                                else:
+                                    pass
+                            else:
+                                oplots.append(plot)
+                                mainboard[pos] = 'O'
+
+                                listoffset('O', plot, pos)
+
+                                wincheck(friendly)
+                                drawcheck()
+                                if WinState == 0:
+                                    turnmark(friendly)
+                                else:
+                                    pass
+                                
+                        elif GameMode == 2:
+                            xplots.append(plot)
+                            mainboard[pos] = 'X'
+                            
+                            listoffset('X', plot, pos)
+
+                            wincheck(friendly)
+                            drawcheck()                            
+                            if WinState == 0:
+                                
+                                turnmark(friendly)
+
+                                ridxret = comrecommendedmove()
+                                com_move = commove() #plot, pos
+                                
+                                oplots.append(com_move[0])
+                                mainboard[com_move[1]] = 'O'
+
+                                listoffset('O', com_move[0], com_move[1])
+
+                                wincheck(friendly)
+                                drawcheck()
+                                if WinState == 0:
+                                    turnmark(friendly)
+                                else:
+                                    pass
+                                
+                            else:
+                                pass
+                            
+                        elif GameMode == 3:
+                            pass
+                
+                    TurnCount += 1
+
+                # Playagain or not?
+                # Playagain_YES
+                elif (TopLeftYes[0]) <= mx <= (TopLeftYes[0]+50)\
+                   and (TopLeftYes[1]) <= my <= (TopLeftYes[1]+25)\
+                   and ButtonPressed == 'Playagain':
+                    nextround() 
+                    ButtonPressed = 'None'
+                # Playagain_NO
+                elif (TopLeftNo[0]) <= mx <= (TopLeftNo[0]+50)\
+                   and (TopLeftNo[1]) <= my <= (TopLeftNo[1]+25)\
+                   and ButtonPressed == 'Playagain':
+                    ButtonPressed = 'None'
+
+                # Change game mode button is clicked
+                elif TopLeftChange[0] <= mx <= (TopLeftChange[0]+150)\
+                   and TopLeftChange[1] <= my <= (TopLeftChange[1]+25)\
+                   and ButtonPressed == 'None':
+                    ButtonPressed = 'Change'
+                # Choosing wether to change game mode or no
+                # Change_YES
+                elif (TopLeftYes[0]) <= mx <= (TopLeftYes[0]+50)\
+                   and (TopLeftYes[1]) <= my <= (TopLeftYes[1]+25)\
+                   and ButtonPressed == 'Change':
+                    if GameMode == 1:
+                        GameMode = 2
+                    elif GameMode == 2:
+                        GameMode =1
+                    elif GameMode == 3:
+                        pass
+                    reset()
+                    ButtonPressed = 'None'
+                # Change_NO
+                elif (TopLeftNo[0]) <= mx <= (TopLeftNo[0]+50)\
+                   and (TopLeftNo[1]) <= my <= (TopLeftNo[1]+25)\
+                   and ButtonPressed == 'Change':
+                    ButtonPressed = 'None'
+                    
+                # Reset button is clicked
+                elif TopLeftReset[0] <= mx <= (TopLeftReset[0]+75)\
+                   and TopLeftReset[1] <= my <= (TopLeftReset[1]+25)\
+                   and ButtonPressed == 'None':
+                    ButtonPressed = 'Reset'
+                # Choosing wether to reset or no
+                # Reset_YES
+                elif (TopLeftYes[0]) <= mx <= (TopLeftYes[0]+50)\
+                   and (TopLeftYes[1]) <= my <= (TopLeftYes[1]+25)\
+                   and ButtonPressed == 'Reset':
+                    reset()
+                    ButtonPressed = 'None'
+                # Reset_NO
+                elif (TopLeftNo[0]) <= mx <= (TopLeftNo[0]+50)\
+                   and (TopLeftNo[1]) <= my <= (TopLeftNo[1]+25)\
+                   and ButtonPressed == 'Reset':
+                    ButtonPressed = 'None'
+
+                # Quit button is clicked        
+                elif TopLeftQuit[0] <= mx <= (TopLeftQuit[0]+75)\
+                   and TopLeftQuit[1] <= my <= (TopLeftQuit[1]+25)\
+                   and ButtonPressed == 'None':
+                    ButtonPressed = 'Quit'
+                # Choosing wether to quit or no
+                # Quit_YES
+                elif (TopLeftYes[0]) <= mx <= (TopLeftYes[0]+50)\
+                   and (TopLeftYes[1]) <= my <= (TopLeftYes[1]+25)\
+                   and ButtonPressed == 'Quit':
+                    GameState = False
+                    ButtonPressed = 'None'
+                # Quit_NO
+                elif (TopLeftNo[0]) <= mx <= (TopLeftNo[0]+50)\
+                   and (TopLeftNo[1]) <= my <= (TopLeftNo[1]+25)\
+                   and ButtonPressed == 'Quit':
+                    ButtonPressed = 'None'
+
+                # Pressing the Undo button
+                elif TopLeftUndo[0] <= mx <= (TopLeftUndo[0]+75)\
+                   and TopLeftUndo[1] <= my <= (TopLeftUndo[1]+25)\
+                   and WinState == 0\
+                   and ButtonPressed == 'None':
+                    undo()
+
+                # Pressing the Help button
+                elif TopLeftHelp[0] <= mx <= (TopLeftHelp[0]+75)\
+                   and TopLeftHelp[1] <= my <= (TopLeftHelp[1]+25)\
+                   and WinState == 0\
+                   and ButtonPressed == 'None':
+                    ButtonPressed = 'Help'
+
+                # Pressing the Ok button
+                elif TopLeftOk[0] <= mx <= (TopLeftOk[0]+75)\
+                   and TopLeftOk[1] <= my <= (TopLeftOk[1]+25)\
+                   and WinState == 0\
+                   and ButtonPressed == 'Help':
+                    ButtonPressed = 'None'
+
+                else:
+                    pass
+                
+            else:
+                pass
+
+        pygame.display.update()
+
+        # ---------------------------------- End of game main event ---------------------------------- #
+
+def gamemode3(): # Test mode (COM vs COM)
+    global mainboard
+    global xplots
+    global oplots
+
+    while WinState == 0:
+
+        com_move = commove() #plot, pos
+        
+        xplots.append(com_move[0])
+        mainboard[com_move[1]] = 'X'
+
+        wincheck(friendly)
+        drawcheck()
+        if WinState == 0:
+            turnmark(friendly)
+        else:
+            pass
+
+        com_move = commove() #plot, pos
+        
+        oplots.append(com_move[0])
+        mainboard[com_move[1]] = 'O'
+
+        wincheck(friendly)
+        drawcheck()
+        if WinState == 0:
+            turnmark(friendly)
+        else:
+            pass
+
+def listoffset(mark, plot, pos):
+    global lastmove
+    global undolist
+
+    if mark == 'X':
+        lastmove[2] = lastmove[0]
+        lastmove[0] = plot
+        undolist[0] = undolist[1]
+        undolist[1] = pos
+    else:
+        lastmove[3] = lastmove[1]
+        lastmove[1] = plot
+        undolist[0] = undolist[1]
+        undolist[1] = pos
+
+def valuesweeper(board_type, rStart, rStop, rStep, RightOffsetCount, RightOffsetStep, PickMember):
+    sweep = []
+    for i in range(rStart, rStop, rStep):
+        walker = (i - rStart)
+        for j in range(RightOffsetCount):
+            pickerincr = [int((j * RightOffsetStep) + walker)] * len(PickMember)
+            PickMemberNew = list(map(operator.add, PickMember, pickerincr))
+            lsttemp = [board_type[n] for n in PickMemberNew]
+            sweep.append(lsttemp + PickMemberNew)
+    return  sweep
+
+def horlink2(lst):
+    lstr = valuesweeper(lst, 0, 211, 15, 14, 1, [0, 1])
+    return lstr
+def horlink3(lst):
+    lstr = valuesweeper(lst, 0, 211, 15, 13, 1, [0, 1, 2])
+    return lstr
+def horlink4(lst):
+    lstr = valuesweeper(lst, 0, 211, 15, 12, 1, [0, 1, 2, 3])
+    return lstr
+def horlink5(lst):
+    lstr = valuesweeper(lst, 0, 211, 15, 11, 1, [0, 1, 2, 3, 4])
+    return lstr
+def horlink6(lst):
+    lstr = valuesweeper(lst, 0, 211, 15, 10, 1, [0, 1, 2, 3, 4, 5])
+    return lstr
+
+def verlink2(lst):
+    lstr = valuesweeper(lst, 0, 196, 15, 15, 1, [0, 15])
+    return lstr
+def verlink3(lst):
+    lstr = valuesweeper(lst, 0, 181, 15, 15, 1, [0, 15, 30])
+    return lstr
+def verlink4(lst):
+    lstr = valuesweeper(lst, 0, 166, 15, 15, 1, [0, 15, 30, 45])
+    return lstr
+def verlink5(lst):
+    lstr = valuesweeper(lst, 0, 151, 15, 15, 1, [0, 15, 30, 45, 60])
+    return lstr
+def verlink6(lst):
+    lstr = valuesweeper(lst, 0, 136, 15, 15, 1, [0, 15, 30, 45, 60, 75])
+    return lstr
+
+def diarlink2(lst):
+    lstr = valuesweeper(lst, 15, 211, 15, 14, 1, [15, 1])
+    return lstr
+def diarlink3(lst):
+    lstr = valuesweeper(lst, 30, 211, 15, 13, 1, [30, 16, 2])
+    return lstr
+def diarlink4(lst):
+    lstr = valuesweeper(lst, 45, 211, 15, 12, 1, [45, 31, 17, 3])
+    return lstr
+def diarlink5(lst):
+    lstr = valuesweeper(lst, 60, 211, 15, 11, 1, [60, 46, 32, 18, 4])
+    return lstr
+def diarlink6(lst):
+    lstr = valuesweeper(lst, 75, 211, 15, 10, 1, [75, 61, 47, 33, 19, 5])
+    return lstr
+
+def diallink2(lst):
+    lstr = valuesweeper(lst, 0, 196, 15, 14, 1, [0, 16])
+    return lstr
+def diallink3(lst):
+    lstr = valuesweeper(lst, 0, 181, 15, 13, 1, [0, 16, 32])
+    return lstr
+def diallink4(lst):
+    lstr = valuesweeper(lst, 0, 166, 15, 12, 1, [0, 16, 32, 48])
+    return lstr
+def diallink5(lst):
+    lstr = valuesweeper(lst, 0, 151, 15, 11, 1, [0, 16, 32, 48, 64])
+    return lstr
+def diallink6(lst):
+    lstr = valuesweeper(lst, 0, 136, 15, 10, 1, [0, 16, 32, 48, 64, 80])
+    return lstr
+
+def vallink2(lst, h, f):
+    global valuebaord
+    for i in range(len(lst)):
+        if lst[i][:2] == ['.',h]: # A
+            valueboard[lst[i][2]] += 1
+        elif lst[i][:2] == [h,'.']: # B
+            valueboard[lst[i][3]] += 1
+        else:
+            pass
+
+def vallink3(lst, h, f):
+    global valueboard
+    for i in range(len(lst)):
+        if lst[i][:3] == ['.',h,f]:
+            valueboard[lst[i][3]] -= 0
+        elif lst[i][:3] == [f,h,'.']:
+            valueboard[lst[i][5]] -= 0
+        elif lst[i][:3] == ['.',h,h]:
+            valueboard[lst[i][3]] += 2
+        elif lst[i][:3] == [h,h,'.']:
+            valueboard[lst[i][5]] += 2
+        else:
+            pass
+
+def vallink4(lst, h, f):
+    global valueboard
+    for i in range(len(lst)):
+        if lst[i][:4] == ['.',h,h,f]:
+            valueboard[lst[i][4]] -= 0
+        elif lst[i][:4] == [f,h,h,'.']:
+            valueboard[lst[i][7]] -= 0
+        elif lst[i][:4] == ['.',h,h,h]:
+            valueboard[lst[i][4]] += 7
+        elif lst[i][:4] == [h,h,h,'.']:
+            valueboard[lst[i][7]] += 7
+        else:
+            pass
+
+def vallink5(lst, h, f):
+    global valueboard
+    for i in range(len(lst)):
+        if lst[i][:5] == ['.',h,'.',h,f]:
+            valueboard[lst[i][7]] -= 0
+        elif lst[i][:5] == [f,h,'.',h,'.']:
+            valueboard[lst[i][7]] -= 0
+        elif lst[i][:5] == ['.',h,h,h,f]:
+            valueboard[lst[i][5]] -= 0
+        elif lst[i][:5] == [f,h,h,h,'.']:
+            valueboard[lst[i][9]] -= 0
+        elif lst[i][:5] == ['.',h,'.',h,'.']:
+            valueboard[lst[i][7]] += 10
+        elif lst[i][:5] == ['.',h,h,h,h]:
+            valueboard[lst[i][5]] += 50
+        elif lst[i][:5] == [h,'.',h,h,h]:
+            valueboard[lst[i][6]] += 50
+        elif lst[i][:5] == [h,h,'.',h,h]:
+            valueboard[lst[i][7]] += 50
+        elif lst[i][:5] == [h,h,h,'.',h]:
+            valueboard[lst[i][8]] += 50
+        elif lst[i][:5] == [h,h,h,h,'.']:
+            valueboard[lst[i][9]] += 50
+        else:
+            pass
+
+def vallink6(lst, h, f):
+    global valueboard
+    for i in range(len(lst)):
+        if lst[i][:6] == ['.','.',h,h,'.','.']:
+            valueboard[lst[i][7]] += 5
+            valueboard[lst[i][10]] += 5
+        elif lst[i][:6] == ['.','.',h,'.',h,'.']:
+            valueboard[lst[i][7]] += 10
+        elif lst[i][:6] == ['.',h,'.',h,'.','.']:
+            valueboard[lst[i][10]] += 10
+        elif lst[i][:6] == ['.','.',h,h,h,'.']:
+            valueboard[lst[i][7]] += 30
+        elif lst[i][:6] == ['.',h,h,h,'.','.']:
+            valueboard[lst[i][10]] += 30
+        elif lst[i][:6] == ['.',h,h,'.',h,'.']:
+            valueboard[lst[i][9]] += 30
+        elif lst[i][:6] == ['.',h,'.',h,h,'.']:
+            valueboard[lst[i][8]] += 30
+        else:
+            pass
+
+def wincheck(mark):
+    global WinState
+    global winlist
+    
+    winlst = []
+
+    winhor = horlink5(mainboard)
+    winver = verlink5(mainboard)
+    windiar = diarlink5(mainboard)
+    windial = diallink5(mainboard)
+    
+    for i in winhor:
+        if i[:5].count(mark) == 5:
+            winlist = [n for n in i[5:10]]
+            WinState = 1
+            scoring()
+            playagain()
+        else:
+            pass
+    for i in winver:
+        if i[:5].count(mark) == 5:
+            winlist = [n for n in i[5:10]]
+            WinState = 1
+            scoring()
+            playagain()
+        else:
+            pass
+    for i in windiar:
+        if i[:5].count(mark) == 5:
+            winlist = [n for n in i[5:10]]
+            WinState = 1
+            scoring()
+            playagain()
+        else:
+            pass
+    for i in windial:
+        if i[:5].count(mark) == 5:
+            winlist = [n for n in i[5:10]]
+            WinState = 1
+            scoring()
+            playagain()
+        else:
+            pass
+
+def scoring():
+    global xscore
+    global oscore
+
+    if friendly == 'O':
+        oscore += 1
+    else:
+        xscore += 1
+
+def threatcheck():
+    valueboardori()
+    global valueboard
+
+    vallink2(horlink2(mainboard), hostile, friendly)
+    vallink2(verlink2(mainboard), hostile, friendly)
+    vallink2(diarlink2(mainboard), hostile, friendly)
+    vallink2(diallink2(mainboard), hostile, friendly)
+    
+    vallink3(horlink3(mainboard), hostile, friendly)
+    vallink3(verlink3(mainboard), hostile, friendly)
+    vallink3(diarlink3(mainboard), hostile, friendly)
+    vallink3(diallink3(mainboard), hostile, friendly)
+
+    vallink4(horlink4(mainboard), hostile, friendly)
+    vallink4(verlink4(mainboard), hostile, friendly)
+    vallink4(diarlink4(mainboard), hostile, friendly)
+    vallink4(diallink4(mainboard), hostile, friendly)
+
+    vallink5(horlink5(mainboard), hostile, friendly)
+    vallink5(verlink5(mainboard), hostile, friendly)
+    vallink5(diarlink5(mainboard), hostile, friendly)
+    vallink5(diallink5(mainboard), hostile, friendly)
+
+    vallink6(horlink6(mainboard), hostile, friendly)
+    vallink6(verlink6(mainboard), hostile, friendly)
+    vallink6(diarlink6(mainboard), hostile, friendly)
+    vallink6(diallink6(mainboard), hostile, friendly)
+
+def linkingcheck():
+    valueboardori()
+    global valueboard
+
+    vallink2(horlink2(mainboard), friendly, hostile)
+    vallink2(verlink2(mainboard), friendly, hostile)
+    vallink2(diarlink2(mainboard), friendly, hostile)
+    vallink2(diallink2(mainboard), friendly, hostile)
+    
+    vallink3(horlink3(mainboard), friendly, hostile)
+    vallink3(verlink3(mainboard), friendly, hostile)
+    vallink3(diarlink3(mainboard), friendly, hostile)
+    vallink3(diallink3(mainboard), friendly, hostile)
+
+    vallink4(horlink4(mainboard), friendly, hostile)
+    vallink4(verlink4(mainboard), friendly, hostile)
+    vallink4(diarlink4(mainboard), friendly, hostile)
+    vallink4(diallink4(mainboard), friendly, hostile)
+
+    vallink5(horlink5(mainboard), friendly, hostile)
+    vallink5(verlink5(mainboard), friendly, hostile)
+    vallink5(diarlink5(mainboard), friendly, hostile)
+    vallink5(diallink5(mainboard), friendly, hostile)
+
+    vallink6(horlink6(mainboard), friendly, hostile)
+    vallink6(verlink6(mainboard), friendly, hostile)
+    vallink6(diarlink6(mainboard), friendly, hostile)
+    vallink6(diallink6(mainboard), friendly, hostile)
+
+def comrecommendedmove():
+    recommidx = []
+    
+    threatcheck() #populating the recommended move based on the present of threat from enemy
+    defensemoveidx = [[i, j] for i, j in list(enumerate(valueboard)) if j != 0]
+    for i in defensemoveidx:
+        recommidx.append(i)
+    dmx = [j for i, j in defensemoveidx]
+    defidxret = [i for i, j in defensemoveidx if j == max(dmx)]
+ 
+    linkingcheck() #populating the recommended move based on the present of linking change of friendly pieces
+    offensemoveidx = [[i, j + 1] for i, j in list(enumerate(valueboard)) if j != 0]
+    for i in offensemoveidx:
+        recommidx.append(i)
+    omx = [j for i, j in offensemoveidx]
+    offidxret = [i for i, j in offensemoveidx if j == max(omx)]
+
+    imx = [j for i, j in recommidx]
+    ridxret = [i for i, j in recommidx if j == max(imx)]
+    
+    if ridxret == []:
+        ridxret = [96,97,98,111,112,113,126,127,128]
+    else:
+        pass
+    
+    return ridxret
+
+def commove():
+    global mainboard
+    global xplots
+    global oplots
+    global lastmove
+    global undolist
+
+    recommendedmove = comrecommendedmove()
+
+    def commovemark():
+        commove = random.choice(recommendedmove)
+        plot = postoplot(commove)
+        pos = commove
+
+        return plot, pos
+
+    result = commovemark()
+    plot = result[0]
+    pos = result[1]
+
+    if recommendedmove == []:
+        pass
+    else:
+        commovemark()
+
+    return plot, pos
+
+def drawcheck():
+    global WinState
+
+    if WinState == 0:
+        if mainboard.count('.') == 0:
+            WinState = 3
+        else:
+            pass
+    else:
+        pass
+
+def playagain():
+    global ButtonPressed
+
+    ButtonPressed = 'Playagain'
+
+def nextround():
+    global TurnCount
+    global RoundCount
+    global WinState
+    global mainboard
+    global valueboard
+    global lastmove
+    global undolist
+    global xplots
+    global xpos
+    global oplots
+    global opos
+    global winlist
+    global friendly
+    global hostile
+
+    TurnCount = 1
+    RoundCount += 1
+    WinState = 0
+    mainboard = ['.' for i in range(225)]
+    valueboard = [0 for i in range(225)]
+    lastmove = ['','','','']
+    undolist = ['','']
+    xplots = []
+    xpos = []
+    oplots = []
+    opos = []
+    winlist = []
+    friendly = 'X'
+    hostile = 'O'
+
+def reset():
+    global TurnCount
+    global RoundCount
+    global WinState
+    global xscore
+    global oscore
+    global mainboard
+    global valueboard
+    global lastmove
+    global undolist
+    global xplots
+    global xpos
+    global oplots
+    global opos
+    global winlist
+    global friendly
+    global hostile
+
+    TurnCount = 1
+    RoundCount = 1
+    WinState = 0
+    xscore = 0
+    oscore = 0
+    mainboard = ['.' for i in range(225)]
+    valueboard = [0 for i in range(225)]
+    lastmove = ['','','','']
+    undolist = ['','']
+    xplots = []
+    xpos = []
+    oplots = []
+    opos = []
+    winlist = []
+    friendly = 'X'
+    hostile = 'O'
+
+def undo():
+    global TurnCount
+    global mainboard
+    global lastmove
+    global undolist
+    global xplots
+    global oplots
+    global xpos
+    global opos
+    
+    if undolist == ['','']:
+        pass
+    else:
+        if GameMode == 1:
+            plot = postoplot(undolist[1])
+            pos = undolist[1]
+
+            if plot in xplots:
+                xplots.remove(plot)
+            elif plot in oplots:
+                oplots.remove(plot)
+            else:
+                pass
+
+            lm = lastmove.index(plot)
+            lastmove[lm] = lastmove[lm + 2]
+            lastmove[lm + 2] = ''
+                    
+            mainboard[pos] = '.'
+
+            undolist[1] = undolist[0]
+            undolist[0] = ''
+
+            turnmark(friendly)
+            TurnCount -= 1
+            
+        elif GameMode == 2:
+            for i in undolist:
+                plot = postoplot(i)
+                pos = i
+
+                if plot in xplots:
+                    xplots.remove(plot)
+                elif plot in oplots:
+                    oplots.remove(plot)
+                else:
+                    pass
+
+                lm = lastmove.index(plot)
+                lastmove[lm] = lastmove[lm + 2]
+                lastmove[lm + 2] = ''
+                        
+                mainboard[pos] = '.'
+
+                undolist[undolist.index(i)] = ''
+
+                turnmark(friendly)
+                TurnCount -= 1
+            
+        elif GameMode == 3:
+            pass
+    
+mainloop()
+
+pygame.quit()
